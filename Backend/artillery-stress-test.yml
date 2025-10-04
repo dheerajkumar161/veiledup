@@ -1,0 +1,96 @@
+config:
+  target: 'http://localhost:5000'
+  phases:
+    - duration: 30
+      arrivalRate: 2
+      name: "Warm up"
+    - duration: 60
+      arrivalRate: 5
+      name: "Baseline"
+    - duration: 60
+      arrivalRate: 10
+      name: "Medium stress"
+    - duration: 60
+      arrivalRate: 20
+      name: "High stress"
+    - duration: 60
+      arrivalRate: 30
+      name: "Peak stress"
+    - duration: 60
+      arrivalRate: 50
+      name: "Extreme stress"
+  defaults:
+    headers:
+      'Content-Type': 'application/json'
+  processor: './artillery-processor.js'
+
+scenarios:
+  - name: "Authentication Stress"
+    weight: 50
+    flow:
+      - post:
+          url: "/api/auth/register"
+          json:
+            name: "StressUser{{ $randomNumber(1000, 9999) }}"
+            email: "stress{{ $randomNumber(1000, 9999) }}@test.com"
+            password: "password123"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+            - json: "$.user._id"
+              as: "userId"
+      - think: 0.5
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "stress{{ $randomNumber(1000, 9999) }}@test.com"
+            password: "password123"
+          capture:
+            - json: "$.token"
+              as: "loginToken"
+      - think: 0.5
+
+  - name: "API Endpoint Stress"
+    weight: 30
+    flow:
+      - get:
+          url: "/health"
+      - think: 0.2
+      - get:
+          url: "/posts"
+      - think: 0.3
+      - get:
+          url: "/posts/category/technology"
+      - think: 0.2
+      - get:
+          url: "/api/auth/health"
+      - think: 0.3
+
+  - name: "Protected Endpoint Stress"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "testuser@test.com"
+            password: "password123"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+            - json: "$.user._id"
+              as: "userId"
+      - think: 0.5
+      - get:
+          url: "/api/chat/users"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - think: 0.5
+      - post:
+          url: "/api/chat/send"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            sender: "{{ userId }}"
+            receiver: "{{ $randomString() }}"
+            content: "Stress test message!"
+      - think: 0.5 

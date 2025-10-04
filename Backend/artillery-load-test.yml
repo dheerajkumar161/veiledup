@@ -1,0 +1,118 @@
+config:
+  target: 'http://localhost:5000'
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm up phase"
+    - duration: 120
+      arrivalRate: 10
+      name: "Sustained load phase"
+    - duration: 60
+      arrivalRate: 20
+      name: "Peak load phase"
+  defaults:
+    headers:
+      'Content-Type': 'application/json'
+  processor: './artillery-processor.js'
+
+scenarios:
+  - name: "Authentication Flow"
+    weight: 40
+    flow:
+      - post:
+          url: "/api/auth/register"
+          json:
+            name: "{{ $randomString() }}"
+            email: "user{{ $randomNumber(1000, 9999) }}@test.com"
+            password: "password123"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+            - json: "$.user._id"
+              as: "userId"
+      - think: 1
+      - get:
+          url: "/api/auth/verify"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - think: 2
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "user{{ $randomNumber(1000, 9999) }}@test.com"
+            password: "password123"
+          capture:
+            - json: "$.token"
+              as: "loginToken"
+      - think: 1
+
+  - name: "Public API Endpoints"
+    weight: 30
+    flow:
+      - get:
+          url: "/health"
+      - think: 1
+      - get:
+          url: "/posts"
+      - think: 2
+      - get:
+          url: "/posts/category/technology"
+      - think: 1
+      - get:
+          url: "/api/auth/health"
+      - think: 1
+
+  - name: "Protected API Endpoints"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "testuser@test.com"
+            password: "password123"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+            - json: "$.user._id"
+              as: "userId"
+      - think: 1
+      - get:
+          url: "/api/chat/users"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - think: 2
+      - post:
+          url: "/api/chat/send"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            sender: "{{ userId }}"
+            receiver: "{{ $randomString() }}"
+            content: "Hello from load test!"
+      - think: 1
+
+  - name: "Post Management"
+    weight: 10
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "testuser@test.com"
+            password: "password123"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+            - json: "$.user._id"
+              as: "userId"
+      - think: 1
+      - post:
+          url: "/upload/create"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            title: "Load Test Post {{ $randomNumber(1, 1000) }}"
+            author: "{{ userId }}"
+            tags: '["test", "load"]'
+            category: "technology"
+            categories: '["technology", "testing"]'
+      - think: 2 

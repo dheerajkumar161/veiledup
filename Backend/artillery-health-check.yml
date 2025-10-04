@@ -1,0 +1,41 @@
+config:
+  target: 'http://localhost:5000'
+  phases:
+    - duration: 30
+      arrivalRate: 5
+      name: "Health Check Test"
+  
+  headers:
+    Content-Type: "application/json"
+    User-Agent: "Artillery Health Check"
+  
+  timeout: 5000
+  expect: []
+
+scenarios:
+  - name: "Basic Health Check"
+    flow:
+      - get:
+          url: "/"
+          expect:
+            - statusCode: [200, 404]
+      
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: [200, 404]
+      
+      - get:
+          url: "/api"
+          expect:
+            - statusCode: [200, 404]
+      
+      - get:
+          url: "/api/posts"
+          expect:
+            - statusCode: [200, 401, 404]
+      
+      - get:
+          url: "/api/auth"
+          expect:
+            - statusCode: [200, 404] 
