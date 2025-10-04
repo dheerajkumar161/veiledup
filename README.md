@@ -108,6 +108,3 @@ MONGODB_URI=your_mongodb_atlas_connection_string
 - For CORS issues, ensure backend allows requests from frontend origin.
 
 ---
-
-## License
-MIT 
